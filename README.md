@@ -66,6 +66,18 @@ L'application web est fonctionnelle et elle répond aux attentes du projet.
 
 ```mermaid
 erDiagram
+    title_akas }o--|| title_basics : titleId
+    title_akas {
+        bigint id
+        varchar titleId
+        int ordering
+        varchar title
+        varchar region
+        varchar language
+        boolean type
+        varchar attributes
+        boolean isOriginalTitle
+    }
     title_basics {
         varchar tconst
         varchar titleType
@@ -89,6 +101,20 @@ erDiagram
         varchar characters
         varchar tconst
     }
+    title_episode }o--|| title_basics : tconst
+    title_episode {
+        varchar tconst
+        varchar parentTconst
+        int seasonNumber
+        int episodeNumber
+    }
+    title_crew }o--|| title_basics : tconst
+    title_crew }o--|| name_basics : directors
+    title_crew {
+        varchar tconst
+        varchar directors
+        varchar writers
+    }
     title_principals }o--|| name_basics : nconst
     name_basics {
         varchar nconst
@@ -97,31 +123,6 @@ erDiagram
         int deathYear
         varchar primaryProfession
         varchar knownForTitles
-    }
-    title_episode }o--|| title_basics : tconst
-    title_episode {
-        varchar tconst
-        varchar parentTconst
-        int seasonNumber
-        int episodeNumber
-    }
-    title_akas }o--|| title_basics : titleId
-    title_akas {
-        bigint id
-        varchar titleId
-        int ordering
-        varchar title
-        varchar region
-        varchar language
-        boolean type
-        varchar attributes
-        boolean isOriginalTitle
-    }
-    title_crew }o--|| title_basics : tconst
-    title_crew {
-        varchar tconst
-        varchar directors
-        varchar writers
     }
 
 ```
