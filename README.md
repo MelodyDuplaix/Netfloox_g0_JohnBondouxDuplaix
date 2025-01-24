@@ -59,3 +59,68 @@ Livrables :
 Critères de performance : 
 
 L'application web est fonctionnelle et elle répond aux attentes du projet.
+
+
+## MCD
+
+```mermaid
+erDiagram
+    title_basics {
+        varchar tconst
+        varchar titleType
+        varchar primaryTitle
+        varchar originalTitle
+        boolean isAdult
+        int startYear
+        int endYear
+        int runtimeMinutes
+        varchar genres
+        float averageRating
+        int numVotes
+    }
+    title_principals }o--|| title_basics : tconst
+    title_principals {
+        bigint id
+        int ordering
+        varchar nconst
+        varchar category
+        varchar job
+        varchar characters
+        varchar tconst
+    }
+    title_principals }o--|| name_basics : nconst
+    name_basics {
+        varchar nconst
+        varchar primaryName
+        int birthYear
+        int deathYear
+        varchar primaryProfession
+        varchar knownForTitles
+    }
+    title_episode }o--|| title_basics : tconst
+    title_episode {
+        varchar tconst
+        varchar parentTconst
+        int seasonNumber
+        int episodeNumber
+    }
+    title_akas }o--|| title_basics : titleId
+    title_akas {
+        bigint id
+        varchar titleId
+        int ordering
+        varchar title
+        varchar region
+        varchar language
+        boolean type
+        varchar attributes
+        boolean isOriginalTitle
+    }
+    title_crew }o--|| title_basics : tconst
+    title_crew {
+        varchar tconst
+        varchar directors
+        varchar writers
+    }
+
+```
