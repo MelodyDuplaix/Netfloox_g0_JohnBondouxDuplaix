@@ -77,7 +77,7 @@ erDiagram
         boolean type
         varchar attributes
         boolean isOriginalTitle
-    }
+    } 
     title_basics {
         varchar tconst
         varchar titleType
@@ -109,7 +109,6 @@ erDiagram
         int episodeNumber
     }
     title_crew }o--|| title_basics : tconst
-    title_crew }o--|| name_basics : directors
     title_crew {
         varchar tconst
         varchar directors
@@ -126,3 +125,12 @@ erDiagram
     }
 
 ```
+
+## Lignes en moins si ajout des clés étrangères
+
+title_principals -> title_basics : 67 215 123 / 90 000 000  
+title_principals-> name_basics : 90 0000 000 / 90 000 000   
+title_princpals -> title_basics & name_basics : 67 000 000 / 90 000 000   
+title_crew -> title_basics : 11 000 000 / 11 000 000   
+title_akas -> title_basics : 40 000 000 / 47 000 000  
+title_episode -> title_basics : 7 000 000 / 8 000 000
