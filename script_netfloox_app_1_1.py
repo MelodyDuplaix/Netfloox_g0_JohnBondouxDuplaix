@@ -77,7 +77,7 @@ def prepare_data():
 def plot_genre_distribution(df):
     """Affiche la distribution des 10 genres les plus fréquents."""
     """Affiche la distribution des 10 genres les plus fréquents."""
-    genre_counts = df['genre'].value_counts().head(10)
+    genre_counts = df["genres"].str.split(',').explode().value_counts().head(10)
     plt.figure(figsize=(10, 6))
     sns.barplot(x=genre_counts.index, y=genre_counts.values)
     plt.title("Top 10 des genres de films les plus fréquents")
