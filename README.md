@@ -126,6 +126,23 @@ erDiagram
 
 ```
 
+## features à utiliser
+
+- primarytitle
+- titletype
+- isadult
+- startyear
+- endyear ?
+- genres
+- agrégation / pondération de la colonne averagerating et numvotes
+- runtimeminutes
+- seasonnumber
+- episodenumber
+- nombre de régions dispo
+- liste des régions dispo
+- category (acteur, self, actrice, producteur ?) des primary name
+
+
 ## Lignes en moins si ajout des clés étrangères
 
 title_principals -> title_basics : 67 215 123 / 90 000 000  
