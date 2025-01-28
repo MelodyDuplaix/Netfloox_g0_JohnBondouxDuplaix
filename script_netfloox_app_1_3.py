@@ -8,6 +8,9 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import FunctionTransformer
+from sklearn.preprocessing import MultiLabelBinarizer
 import os
 
 # Étape 1 : Charger les fichiers TSV
@@ -154,12 +157,29 @@ def prepare_model_data(df):
 
     return X, y
 
+class MultiLabelBinarizerWrapper(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.mlb = MultiLabelBinarizer()
+
+    def fit(self, X, y=None):
+        self.mlb.fit(X)
+        return self
+
+    def transform(self, X):
+        return self.mlb.transform(X)
+
 def train_popularity_model(X, y):
     """Entraîne un modèle pour prédire la popularité des films."""
     # Définir un préprocesseur pour encoder les variables catégoriques
-    categorical_features = ['genre', 'primaryName', 'category']
+    categorical_features = ['primaryName', 'category']
+    genre_features = ['genre']
+    
     preprocessor = ColumnTransformer(
         transformers=[
+            ('genre_encoder', Pipeline([
+                ('splitter', FunctionTransformer(lambda x: x["genre"].str.split(','))),
+                ('mlb', MultiLabelBinarizerWrapper())
+            ]), genre_features),
             ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
         ]
     )
@@ -211,12 +231,12 @@ def main_popularity_estimation():
 
     # Interface utilisateur pour estimer la popularité
     st.write("### Entrez les caractéristiques du film :")
-    genre = st.selectbox("Genre", options=df['genre'].unique(), key="unique_genre_input")
+    genre = st.multiselect("Genre", options=[x for x in df['genre'].str.split(",").explode().unique() if x != "\\N"], key="unique_genre_input")    
     actor = st.selectbox("Acteur/Actrice", options=df['primaryName'].unique(), key="unique_actor_input")
     category = st.selectbox("Catégorie", options=df['category'].unique(), key="unique_category_input")
 
     if st.button("Estimer la popularité", key="unique_predict_button"):
-        if genre not in df['genre'].unique():
+        if not all(g in df['genre'].str.split(",").explode().unique() for g in genre):
             st.error("Le genre saisi est inconnu. Veuillez sélectionner un genre valide.")
         elif actor not in df['primaryName'].unique():
             st.error("L'acteur ou actrice saisi(e) est inconnu(e). Veuillez sélectionner une valeur valide.")
