@@ -133,8 +133,6 @@ def recommend_movies(movie_title, df):
         st.warning("Aucun film trouvé avec ce titre.")
         return pd.DataFrame()
     genre = movie['genre'].str.split(",").explode().unique() if not movie.empty else []
-    print(genre)
-    print('|'.join(genre))
     recommendations = (
         df[df['genre'].str.contains('|'.join(genre)) & (~df['tconst'].isin(movie['tconst'].tolist())) & (~df['title'].isin(movie['title'].tolist()))]        .sort_values(by='rating', ascending=False)
         .drop_duplicates(subset=['tconst', 'title'])
