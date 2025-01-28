@@ -19,10 +19,11 @@ def load_tsv(file_path):
 
 # Charger les fichiers nécessaires
 def load_data():
-    basics = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.basics-10k.tsv")
-    ratings = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.ratings-10k.tsv")
-    principals = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.principals-10k.tsv")
-    names = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\name.basics-10k.tsv")
+    basics = load_tsv(r"data/title.basics-10k.tsv")
+    ratings = load_tsv(r"data/title.ratings-10k.tsv")
+    crew = load_tsv(r"data/title.crew-10k.tsv")
+    principals = load_tsv(r"data/title.principals-10k.tsv")
+    names = load_tsv(r"data/name.basics-10k.tsv")
     return basics, ratings, principals, names
 
 # Étape 2 : Préparer et fusionner les données
@@ -58,9 +59,6 @@ def prepare_data():
         'genres': 'genre'
     })
 
-    # Ne garder que le premier mot avant la virgule pour les genres
-    df['genre'] = df['genre'].str.split(',').str[0]
-
     final_columns = ['tconst', 'title', 'genre', 'rating', 'votes', 'primaryName', 'category']
     for col in final_columns:
         if col not in df.columns:
@@ -75,7 +73,7 @@ def analyze_data(df):
 
     # Répartition des genres
     st.write("### Répartition des genres")
-    genre_counts = df['genre'].value_counts().head(10)
+    genre_counts = df["genre"].str.split(',').explode().value_counts().head(10)
     plt.figure(figsize=(10, 6))
     sns.barplot(x=genre_counts.values, y=genre_counts.index, orient='h')
     plt.title("Top 10 des genres les plus fréquents")
@@ -114,15 +112,14 @@ def analyze_data(df):
 
 # Recommandations de films
 def recommend_movies(df, movie_title):
-    st.subheader("Recommandations de films")
 
     movie = df[df['title'].str.contains(movie_title, case=False, na=False)]
     if movie.empty:
         st.warning("Aucun film trouvé avec ce titre.")
         return None
 
-    genre = movie.iloc[0]['genre']
-    recommendations = df[(df['genre'] == genre) & (~df['title'].str.contains(movie_title, case=False, na=False))]
+    genre = movie['genre'].str.split(",").explode().unique() if not movie.empty else []
+    recommendations = df[(df['genre'].str.contains('|'.join(genre))) & (~df['title'].str.contains(movie_title, case=False, na=False))]
     recommendations = recommendations.sort_values(by='rating', ascending=False).drop_duplicates(subset=['title']).head(5)
 
     if recommendations.empty:
@@ -137,7 +134,7 @@ def calculate_popularity(df, genre=None, rating_threshold=None, vote_threshold=N
 
     # Appliquer les filtres séquentiellement
     if genre:
-        filtered_data = filtered_data[filtered_data['genre'] == genre]
+        filtered_data = filtered_data[filtered_data['genre'].str.contains('|'.join(genre))]
     if rating_threshold:
         filtered_data = filtered_data[filtered_data['rating'] >= rating_threshold]
     if vote_threshold:
@@ -168,7 +165,7 @@ def main_popularity_estimation():
     df = prepare_data()
 
     st.write("### Entrez les caractéristiques du film :")
-    genre = st.selectbox("Genre (facultatif)", options=[None] + list(df['genre'].unique()), key="unique_genre_input")
+    genre = st.multiselect("Genre", options=[None] + [x for x in df['genre'].str.split(",").explode().unique() if x != "\\N"], key="unique_genre_input")
     rating_threshold = st.slider("Note minimale (facultatif)", min_value=0.0, max_value=10.0, value=5.0, step=0.1)
     vote_threshold = st.slider("Nombre minimum de votes (facultatif)", min_value=0, max_value=int(df['votes'].max()), value=100)
     actor = st.selectbox("Acteur/Actrice (facultatif)", options=[None] + list(df[df['category'].str.contains('actor|actress', na=False)]['primaryName'].unique()), key="unique_actor_input")
