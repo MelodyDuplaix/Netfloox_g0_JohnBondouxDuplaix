@@ -25,10 +25,11 @@ def load_tsv(file_path):
 # Charger les fichiers nécessaires
 # Mise à jour avec les chemins corrects pour les fichiers uploadés
 def load_data():
-    basics = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.basics-10k.tsv")
-    ratings = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.ratings-10k.tsv")
-    crew = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.crew-10k.tsv")
-    principals = load_tsv(r"C:\Users\sbond\Desktop\Netfloox\1-Data\data\title.principals-10k.tsv")
+    basics = load_tsv(r"data/title.basics-10k.tsv")
+    ratings = load_tsv(r"data/title.ratings-10k.tsv")
+    crew = load_tsv(r"data/title.crew-10k.tsv")
+    principals = load_tsv(r"data/title.principals-10k.tsv")
+    names = load_tsv(r"data/name.basics-10k.tsv")
     return basics, ratings, crew, principals
 
 # Étape 2 : Préparer et fusionner les données
@@ -77,7 +78,7 @@ def prepare_data():
 def plot_genre_distribution(df):
     """Affiche la distribution des 10 genres les plus fréquents."""
     """Affiche la distribution des 10 genres les plus fréquents."""
-    genre_counts = df["genres"].str.split(',').explode().value_counts().head(10)
+    genre_counts = df["genre"].str.split(',').explode().value_counts().head(10)
     plt.figure(figsize=(10, 6))
     sns.barplot(x=genre_counts.index, y=genre_counts.values)
     plt.title("Top 10 des genres de films les plus fréquents")

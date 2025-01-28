@@ -3,3 +3,6 @@ psycopg2-binary
 pandas
 python-dotenv
 scikit-learn
+matplotlib
+seaborn
+streamlit
