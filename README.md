@@ -68,8 +68,8 @@ L'application web est fonctionnelle et elle répond aux attentes du projet.
 erDiagram
     title_akas }o--|| title_basics : titleId
     title_akas {
-        bigint id
-        varchar titleId
+        bigint identifiant
+        varchar tconst
         int ordering
         varchar title
         varchar region
