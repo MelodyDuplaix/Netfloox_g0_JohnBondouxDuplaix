@@ -68,8 +68,8 @@ L'application web est fonctionnelle et elle répond aux attentes du projet.
 erDiagram
     title_akas }o--|| title_basics : titleId
     title_akas {
-        bigint id
-        varchar titleId
+        bigint identifiant
+        varchar tconst
         int ordering
         varchar title
         varchar region
@@ -125,6 +125,23 @@ erDiagram
     }
 
 ```
+
+## features à utiliser
+
+- primarytitle
+- titletype
+- isadult
+- startyear
+- endyear ?
+- genres
+- agrégation / pondération de la colonne averagerating et numvotes
+- runtimeminutes
+- seasonnumber
+- episodenumber
+- nombre de régions dispo
+- liste des régions dispo
+- category (acteur, self, actrice, producteur ?) des primary name
+
 
 ## Lignes en moins si ajout des clés étrangères
 
