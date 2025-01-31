@@ -13,9 +13,10 @@ def get_extracted_features(line_number):
     query = f"SELECT tconst, titletype, primarytitle, isadult, startyear, endyear, runtimeminutes, genres, averagerating, numvotes FROM sebastien.title_basics ORDER BY tconst LIMIT {line_number};"
     with engine.connect() as conn, conn.begin():
         df = pd.read_sql_query(query, engine)
+    print("table 1 / 4")
         
     # Table episode
-    query = "SELECT * FROM seb astien.title_episode;"
+    query = "SELECT * FROM sebastien.title_episode;"
     with engine.connect() as conn, conn.begin():
         df_episode = pd.read_sql_query(query, engine)
     df_merge = df.merge(df_episode, on="tconst", how="left")
@@ -34,6 +35,7 @@ def get_extracted_features(line_number):
         'seasonnumber': 'max', # on garde le max de seasonnumber, soit le non nul
         'episodenumber': 'max'
     }).reset_index()
+    print("table 2 / 4")
     
     # table akas
     query_title_akas = f"""
@@ -59,6 +61,7 @@ def get_extracted_features(line_number):
         return region_list
     
     df_akas['regionlist'] = df_akas['regionlist'].apply(replace_and_filter)
+    print("table 3 / 4")
     
     # table principals
     query_title_principals = """
@@ -82,6 +85,7 @@ def get_extracted_features(line_number):
     df_principals = df_principals[["tconst", "actor", "self", "producer", "actress", "director"]]
     df_final = pd.merge(df, df_principals, on='tconst', how='left')
     df_final.head()
+    print("table 4 / 4")
     
     return df_final
 
