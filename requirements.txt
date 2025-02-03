@@ -9,3 +9,4 @@ streamlit
 plotly
 nbformat
 statsmodels
+nltk
