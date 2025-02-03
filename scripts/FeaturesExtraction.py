@@ -64,7 +64,7 @@ def get_extracted_features(line_number):
     print("table 3 / 4")
     
     # table principals
-    query_title_principals = """
+    query_title_principals = f"""
     SELECT 
         tconst,
         category,
@@ -76,7 +76,7 @@ def get_extracted_features(line_number):
     ON 
         ta.nconst = nb.nconst
     WHERE 
-        ta.tconst IN (SELECT tconst FROM sebastien.title_basics ORDER BY tconst LIMIT 10000);
+        ta.tconst IN (SELECT tconst FROM sebastien.title_basics ORDER BY tconst LIMIT  {line_number});
     """
 
     with engine.connect() as conn, conn.begin():
