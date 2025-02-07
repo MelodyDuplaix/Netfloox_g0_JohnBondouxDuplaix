@@ -45,8 +45,8 @@ def Featurescleaning(df):
 
     # Calcul du score pondéré
     def weighted_rating(x, m=m, C=C):
-        v = x['numvotes']
-        R = x['averagerating']
+        v = x['numvotes'] if pd.notnull(x['numvotes']) else 1
+        R = x['averagerating'] if pd.notnull(x['averagerating']) else 0
         return (v / (v + m) * R) + (m / (v + m) * C)
 
     df['weighted_score'] = df.apply(weighted_rating, axis=1)
