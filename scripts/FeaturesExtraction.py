@@ -10,7 +10,13 @@ def get_extracted_features(line_number):
     engine = create_engine(database_url)  # type: ignore
     
     # Récupération des données de la table de base
-    query = f"SELECT tconst, titletype, primarytitle, isadult, startyear, endyear, genres, averagerating, numvotes FROM sebastien.title_basics ORDER BY tconst LIMIT {line_number};"
+    query = f"""
+    SELECT tconst, titletype, primarytitle, isadult, startyear, genres, averagerating, numvotes 
+    FROM sebastien.title_basics 
+    WHERE startyear IS NOT NULL 
+    ORDER BY startyear DESC 
+    LIMIT {line_number};
+    """
     with engine.connect() as conn, conn.begin():
         df = pd.read_sql_query(query, engine)
     print("table 1 / 4")
@@ -27,7 +33,6 @@ def get_extracted_features(line_number):
         'primarytitle': 'first',
         'isadult': 'first',
         'startyear': 'first',
-        'endyear': 'first',
         'genres': 'first',
         'averagerating': 'first',
         'numvotes': 'first',
@@ -45,7 +50,10 @@ def get_extracted_features(line_number):
     FROM 
         sebastien.title_akas ta
     WHERE 
-        ta.tconst IN (SELECT tconst FROM sebastien.title_basics ORDER BY tconst LIMIT {line_number})
+        ta.tconst IN (
+            SELECT tconst FROM sebastien.title_basics 
+            WHERE startyear IS NOT NULL 
+            ORDER BY startyear DESC LIMIT {line_number})
     GROUP BY 
         ta.tconst;
     """
@@ -75,7 +83,10 @@ def get_extracted_features(line_number):
     ON 
         ta.nconst = nb.nconst
     WHERE 
-        ta.tconst IN (SELECT tconst FROM sebastien.title_basics ORDER BY tconst LIMIT  {line_number});
+        ta.tconst IN (
+            SELECT tconst FROM sebastien.title_basics  
+            WHERE startyear IS NOT NULL 
+            ORDER BY startyear DESC LIMIT  {line_number});
     """
 
     with engine.connect() as conn, conn.begin():
