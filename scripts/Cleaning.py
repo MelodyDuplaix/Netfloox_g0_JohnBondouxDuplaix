@@ -53,9 +53,9 @@ def Featurescleaning(df):
 
     
     #Retirer caractères spéciaux, espaces et retourner en minuscule
-    df['primarytitle'] = df['primarytitle'].apply(clean_text)
+    # df['primarytitle'] = df['primarytitle'].apply(clean_text)
     #Stemming
-    df['primarytitle'] = df['primarytitle'].apply(stemming)
+    # df['primarytitle'] = df['primarytitle'].apply(stemming)
     
     
     df['genres'] = df['genres'].astype(str)
