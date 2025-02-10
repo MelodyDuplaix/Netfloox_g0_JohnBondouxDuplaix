@@ -16,12 +16,16 @@ class PopularityPrediction():
     A class used to predict the popularity of TV shows or movies based on various features.
     Methods
     -------
+    
     fit(df)
         Fits the model to the provided DataFrame `df`.
+        
     predict(features)
         Predicts the popularity score for the given features.
+        
     evaluate()
         Evaluates the model on the test set and prints the Mean Squared Error (MSE), Mean Absolute Error (MAE), and R-squared (R2) score.
+        
     Example
     -------
     >>> import sys
@@ -44,7 +48,7 @@ class PopularityPrediction():
         self.yearPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="median")), ("scaling", StandardScaler())])
         self.seasonEpisodeNumberPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="constant", fill_value=1)), ("scaling", StandardScaler())])
         self.primarytitlePipeline = Pipeline(steps=[("tfidf", TfidfVectorizer(stop_words="english"))])
-        self.titletypePipeline = Pipeline(steps=[("tfidf", OrdinalEncoder())])
+        self.titletypePipeline = Pipeline(steps=[("encoder", OrdinalEncoder())])
         self.genresPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
         ])
