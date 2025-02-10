@@ -11,54 +11,42 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 from nltk import PorterStemmer
 import nltk
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
 
-# Imports supplémentaires pour la recommandation
+# Imports pour le traitement et la modélisation
 from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, OrdinalEncoder
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder, FunctionTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Charger le fichier .env et vérifier DATABASE_URL
+# Charger le fichier .env et définir DATABASE_URL (valeur par défaut utilisée si non définie)
 load_dotenv()
-if os.getenv("DATABASE_URL") is None:
-    st.error(
-        "Erreur : La variable DATABASE_URL n'est pas définie dans le fichier .env.\n"
-        "Veuillez ajouter une ligne comme :\n\nDATABASE_URL=postgresql://username:password@host:port/database_name"
-    )
-    st.stop()
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://psqladmin:GRETAP4!2025***@netfloox-psqlflexibleserver-0.postgres.database.azure.com:5432/postgres")
+st.write("URL de la base de données utilisée :", DATABASE_URL)
 
 # Téléchargement des ressources NLTK (à exécuter une seule fois)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# Nom du fichier de cache local (sera créé dans le même dossier que ce script)
+# Nom du fichier de cache local
 CACHE_FILE = "data_cache.parquet"
 
 # ---------------------------------------------------------------------
 # PARTIE 1 : Extraction et Nettoyage des Données
 # ---------------------------------------------------------------------
 
-def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
-    """
-    Extraction des données issues de plusieurs tables, fusion et agrégation.
-    Si un cache local existe (fichier Parquet), les données sont chargées depuis ce fichier.
-    Sinon, elles sont extraites depuis la base de données et sauvegardées en cache.
-    """
+def get_extracted_features(line_number=10000) -> pd.DataFrame:
     if os.path.exists(CACHE_FILE):
         st.write("Chargement des données depuis le cache local...")
         df_final = pd.read_parquet(CACHE_FILE)
         return df_final
 
     st.write("Extraction des données depuis la base de données...")
-    database_url = os.getenv("DATABASE_URL")
-    if database_url is None:
-        raise ValueError("DATABASE_URL n'est pas défini dans le fichier .env.")
-    engine = create_engine(database_url)
+    engine = create_engine(DATABASE_URL)
 
     # Extraction de la table title_basics
     query = f"""
@@ -70,6 +58,7 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     """
     df = pd.read_sql_query(query, engine)
     st.write("Table 1/4 chargée.")
+   
 
     # Extraction et fusion avec la table title_episode
     query = "SELECT * FROM sebastien.title_episode;"
@@ -149,9 +138,6 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     return df_final
 
 def clean_list(list_str) -> list:
-    """
-    Convertit une chaîne représentant une liste en une vraie liste.
-    """
     if isinstance(list_str, (list, np.ndarray)):
         return list(list_str)
     if list_str is None:
@@ -162,9 +148,6 @@ def clean_list(list_str) -> list:
     return [item.strip() for item in s.split(",") if item.strip()]
 
 def clean_region_list(list_str) -> list:
-    """
-    Nettoie une liste de régions en supprimant les valeurs indésirables.
-    """
     if isinstance(list_str, (list, np.ndarray)):
         return list(list_str)
     if list_str is None:
@@ -175,48 +158,45 @@ def clean_region_list(list_str) -> list:
     return [item.strip() for item in s.split(",") if item.strip()]
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Nettoyage des données et feature engineering.
-    """
-    # Conversion et gestion des valeurs manquantes
-    df['numvotes'] = pd.to_numeric(df['numvotes'].replace("\\N", np.nan), errors='coerce')
-    df['averagerating'] = pd.to_numeric(df['averagerating'].replace("\\N", np.nan), errors='coerce')
-    df['numvotes'].fillna(0, inplace=True)
-    df['averagerating'].fillna(df['averagerating'].mean(), inplace=True)
-    
-    C = df['averagerating'].mean()
+  
+    df["averagerating"] = df["averagerating"].astype(float)
+    df["numvotes"] = df["numvotes"].astype(float)
+    df['averagerating'] = pd.to_numeric(df['averagerating'].replace("\\N", np.nan), errors='coerce')    
+    C = df['averagerating'].fillna(5).mean()
     m = 1000
+    
     def weighted_rating(x, m=m, C=C):
-        v = x['numvotes']
-        R = x['averagerating']
+        v = x['numvotes'] if pd.notna(x['numvotes']) else 1
+        R = x['averagerating'] if pd.notna(x['averagerating']) else 0
         return (v / (v + m) * R) + (m / (v + m) * C)
+       
     df['weighted_score'] = df.apply(weighted_rating, axis=1)
-
+    
     def stemming(text: str) -> str:
         ps = PorterStemmer()
         tokens = text.split()
         stemmed_tokens = [ps.stem(token) for token in tokens]
         return " ".join(stemmed_tokens)
-
+    
     def clean_text(text: str) -> str:
         text = text.lower()
         text = re.sub(r'[^a-z0-9\s\[\]]', '', text)
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
-
+    
     df['primarytitle'] = df['primarytitle'].apply(lambda x: stemming(clean_text(x)))
     df['genres'] = df['genres'].astype(str).apply(lambda x: x.split(','))
-
+    
     for col in ["actor", "actress", "self", "producer", "director"]:
         df[col] = df[col].apply(clean_list)
         counts = df[col].explode().value_counts()
-        top_names = counts.head(10).index.tolist()  # Conserver les 10 noms les plus fréquents
+        top_names = counts.head(10).index.tolist()
         df[col] = df[col].apply(lambda names: [name for name in names if name in top_names])
     df["regionlist"] = df["regionlist"].apply(clean_region_list)
-
+    
     return df
 
-# Pour la fonction de recommandation, nous définissons Featurescleaning comme alias de clean_data
+# Définition locale de Featurescleaning (remplaçant l'import manquant)
 def Featurescleaning(df: pd.DataFrame) -> pd.DataFrame:
     return clean_data(df)
 
@@ -261,53 +241,45 @@ def visualize_data(df: pd.DataFrame):
         plt.clf()
 
 # ---------------------------------------------------------------------
-# PARTIE 3 : Recommandation
+# PARTIE 3 : Recommandation (strictement le code fourni)
 # ---------------------------------------------------------------------
 
 def RecommandationSystem(df, film):
     """
-    Recommande des films similaires au film donné en se basant sur la similarité cosinus.
+    Recommends movies similar to the given film based on the provided DataFrame.
     
     Args:
-        df (pd.DataFrame): DataFrame contenant les données du film avec des features telles que
-                           'startyear', 'seasonnumber', 'episodenumber', 'titletype', 'genres', 'actor', 'actress'
-                           et 'primarytitle'.
-        film (str): Le titre du film pour lequel la recommandation est demandée.
+        df (pd.DataFrame): The DataFrame (not cleaned but with the features) containing movie data with features such as 'startyear', 'seasonnumber', 'episodenumber', 'titletype', 'genres', 'actor', 'actress', and 'primarytitle'.
+        film (str): The title of the film for which recommendations are to be made.
+        ValueError: If the specified film is not present in the 'primarytitle' column of the DataFrame.
         
     Returns:
-        pd.DataFrame: Un DataFrame contenant les 5 films les plus similaires.
+        pd.DataFrame: A DataFrame containing the top 5 movies similar to the given film based on cosine similarity.
     """
-    # Nettoyage des données (on utilise ici notre fonction clean_data via Featurescleaning)
     df = Featurescleaning(df)
 
-    # Sélection des features pertinentes pour la recommandation
+    # Création des features et de la target
     features = df.drop(columns=["averagerating", "numvotes", "weighted_score", "tconst", "primarytitle", "self", "director", "producer"])
-    # Renommage éventuel pour éviter les conflits (ex. "self" devient "selfperson")
     features.rename(columns={"self": "selfperson"}, inplace=True)
+    target = df[["weighted_score"]].fillna(0)
+    features_train, features_test, target_train, target_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-    # Définition des pipelines pour chaque type de donnée
-    yearPipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
-    seasonEpisodeNumberPipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="constant", fill_value=1)),
-        ("scaler", StandardScaler())
-    ])
-    titletypePipeline = Pipeline(steps=[
-        ("encoder", OrdinalEncoder())
-    ])
+    # Définir les pipelines
+    yearPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="median")), ("scaling", StandardScaler())])
+    seasonEpisodeNumberPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="constant", fill_value=1)), ("scaling", StandardScaler())])
+    primarytitlePipeline = Pipeline(steps=[("tfidf", TfidfVectorizer(stop_words="english"))])
+    titletypePipeline = Pipeline(steps=[("tfidf", OrdinalEncoder())])
     genresPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
     actorPipeline = Pipeline(steps=[
-        ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
+            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
     actressPipeline = Pipeline(steps=[
-        ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
+            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
 
-    # Création du ColumnTransformer qui applique chaque pipeline sur les colonnes correspondantes
+    # Création du ColumnTransformer
     preprocessing = ColumnTransformer(transformers=[
         ("year", yearPipeline, ["startyear"]),
         ("seasonEpisodeNumber", seasonEpisodeNumberPipeline, ["seasonnumber", "episodenumber"]),
@@ -317,11 +289,12 @@ def RecommandationSystem(df, film):
         ("actress", actressPipeline, "actress")
     ])
 
-    # Pipeline complet de préparation des données
+    # Création du pipeline de recommandation
     modelPipeReco = Pipeline(steps=[
-        ("preparation", preprocessing)
+        ("prep données", preprocessing)
     ])
 
+    # Entraînement du modèle
     features_transformed = modelPipeReco.fit_transform(features)
     cosine_sim = cosine_similarity(features_transformed)
 
@@ -329,31 +302,126 @@ def RecommandationSystem(df, film):
         raise ValueError(f"Le film '{film}' n'est pas présent dans la colonne 'primarytitle'.")
     index = df[df["primarytitle"] == film].index[0]
     cosine_similarities = cosine_sim[index]
-    similar_indices = cosine_similarities.argsort()[::-1][1:6]
+    similar_indices = cosine_similarities.argsort()[::-1][0:6]
+    similar_indices = [i for i in similar_indices if i != index]
     similar_movies = df.iloc[similar_indices]
     
     return similar_movies
 
 # ---------------------------------------------------------------------
-# MAIN (Interface Streamlit)
+# PARTIE 4 : Estimation de la Popularité par Critères
+# ---------------------------------------------------------------------
+
+class PopularityPrediction():
+    """
+    A class used to predict the popularity of TV shows or movies based on various features.
+    Methods
+    -------
+    
+    fit(df)
+        Fits the model to the provided DataFrame `df`.
+        
+    predict(features)
+        Predicts the popularity score for the given features.
+        
+    evaluate()
+        Evaluates the model on the test set and prints the Mean Squared Error (MSE), Mean Absolute Error (MAE), and R-squared (R2) score.
+        
+    Example
+    -------
+    >>> import sys
+    >>> sys.path.append('..')
+    >>> from scripts.PopularitySystem import PopularityPrediction
+    >>> from scripts.Cleaning import Featurescleaning
+    >>> import pandas as pd
+    >>> df = Featurescleaning(pd.read_csv(filepath_or_buffer='../data/all_data_for_10000_lines.csv'))
+    >>> model = PopularityPrediction()
+    >>> model.fit(df)
+    >>> model.evaluate()
+    MSE:  0.1234
+    MAE:  0.5678
+    R2:  0.9101
+    >>> data = df.iloc[0:1]
+    >>> predictions = model.predict(data)
+    """
+    
+    def __init__(self) -> None:
+        self.yearPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="median")), ("scaling", StandardScaler())])
+        self.seasonEpisodeNumberPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="constant", fill_value=1)), ("scaling", StandardScaler())])
+        self.primarytitlePipeline = Pipeline(steps=[("tfidf", TfidfVectorizer(stop_words="english"))])
+        self.titletypePipeline = Pipeline(steps=[("encoder", OrdinalEncoder())])
+        self.genresPipeline = Pipeline(steps=[
+        ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
+        ])
+        self.actorPipeline = Pipeline(steps=[
+            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
+        ])
+        self.actressPipeline = Pipeline(steps=[
+            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
+        ])
+        self.preprocessing = ColumnTransformer(transformers=[
+            ("year", self.yearPipeline, ["startyear"]),
+            ("seasonEpisodeNumber", self.seasonEpisodeNumberPipeline, ["seasonnumber", "episodenumber"]),
+            ("titletype", self.titletypePipeline, ["titletype"]),
+            ("genres", self.genresPipeline, "genres"),
+            ("actor", self.actorPipeline, "actor"),
+            ("actress", self.actressPipeline, "actress"),
+        ])
+        self.modelPipe = Pipeline(steps=[
+            ("prep données", self.preprocessing),
+            ("model", KNeighborsRegressor())
+        ])
+    
+    def fit(self, df):
+        self.df = df
+        self.features = df.drop(columns=["averagerating", "numvotes", "weighted_score", "tconst", "primarytitle", "self", "director", "producer"])
+        self.features.rename(columns={"self": "selfperson"}, inplace=True)
+        self.target = df[["weighted_score"]].fillna(0)
+        self.features_train, self.features_test, self.target_train, self.target_test = train_test_split(self.features, self.target, test_size=0.2, random_state=42)
+        self.modelPipe.fit( self.features_train, self.target_train)
+        
+    def predict(self, features):
+        return self.modelPipe.predict(features)
+
+    def evaluate(self):
+        y_pred = self.modelPipe.predict(self.features_test)
+        print("MSE: ", mean_squared_error(self.target_test, y_pred))
+        print("MAE: ", mean_absolute_error(self.target_test, y_pred))
+        print("R2: ", r2_score(self.target_test, y_pred))
+
+# ---------------------------------------------------------------------
+# INTERFACE STREAMLIT
 # ---------------------------------------------------------------------
 
 def main():
-    st.title("Application de Visualisation et de Recommandation de Films")
+    st.title("Application de Visualisation, Recommandation et Estimation de la Popularité par Critères")
+    
+    # Bouton pour actualiser la BD (supprimer le cache)
+    if st.sidebar.button("Actualiser la BD"):
+        if os.path.exists(CACHE_FILE):
+            os.remove(CACHE_FILE)
+            st.sidebar.success("Cache supprimé, la BD sera réextrait.")
+    
     df = get_extracted_features(line_number=200)
-    # Nettoyage des données une seule fois et transmission aux différentes fonctionnalités
     df = clean_data(df)
+    model = PopularityPrediction()
+    print(df.head())
+    model.fit(df)
+    print(model.predict(df.iloc[0:1]))
+    print("predictiont")
     
     menu = [
         "Visualisation",
-        "Recommandation"
+        "Recommandation",
+        "Estimation de la Popularité par Critères"
     ]
     choice = st.sidebar.selectbox("Menu principal", menu)
-
+    
     if choice == "Visualisation":
         st.write("Aperçu des données nettoyées :")
         st.dataframe(df.head())
         visualize_data(df)
+    
     elif choice == "Recommandation":
         film = st.text_input("Entrez le titre du film pour lequel vous souhaitez une recommandation")
         if st.button("Obtenir des recommandations"):
@@ -363,6 +431,59 @@ def main():
                 st.dataframe(similar_movies[["primarytitle", "startyear", "genres"]])
             except ValueError as e:
                 st.error(str(e))
-
+    
+    elif choice == "Estimation de la Popularité par Critères":
+        st.subheader("Estimation de la Popularité par Critères")
+        with st.form(key="criteria_form"):
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                use_year = st.checkbox("Filtrer par année")
+                if use_year:
+                    year_val = st.number_input("Année", min_value=1900, max_value=2100, value=2000)
+                else:
+                    year_val = None
+            with col2:
+                actor_list = sorted(set([a for sublist in df["actor"] for a in sublist if a]))
+                actor_options = ["Aucun"] + actor_list
+                actor_choice = st.selectbox("Acteur/Actrice", actor_options)
+                if actor_choice == "Aucun":
+                    actor_choice = None
+            with col3:
+                director_list = sorted(set([d for sublist in df["director"] for d in sublist if d]))
+                director_options = ["Aucun"] + director_list
+                director_choice = st.selectbox("Réalisateur", director_options)
+                if director_choice == "Aucun":
+                    director_choice = None
+            with col4:
+                genre_list = sorted(set([g for genres in df["genres"] for g in genres if g]))
+                genre_options = ["Aucun"] + genre_list
+                genre_choice = st.selectbox("Genre", genre_options)
+                if genre_choice == "Aucun":
+                    genre_choice = None
+            submit_button = st.form_submit_button(label="Estimer la popularité (par critères)")
+        
+        if submit_button:
+            input_data = pd.DataFrame({
+                "startyear": [year_val if year_val is not None else int(df["startyear"].median())],
+                "seasonnumber": [1.0],
+                "episodenumber": [1.0],
+                "titletype": [df["titletype"].mode()[0]],
+                "genres": [[genre_choice] if genre_choice is not None else []],
+                "actor": [[actor_choice] if actor_choice is not None else []],
+                "actress": [[]],
+                "director": [[director_choice] if director_choice is not None else []]
+            })
+            
+            model = PopularityPrediction()
+            # with st.spinner("Entraînement du modèle..."):
+            model.fit(df)
+            # Affichage des types de données pour vérifier les conversions
+            input_data["seasonnumber"] = input_data["seasonnumber"].astype(float)
+            input_data["episodenumber"] = input_data["episodenumber"].astype(float)
+            
+            prediction = model.predict(input_data)
+            st.write("Estimation de la popularité (par critères) :", prediction[0])
+           
+            
 if __name__ == "__main__":
     main()
