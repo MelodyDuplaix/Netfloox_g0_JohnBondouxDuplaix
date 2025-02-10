@@ -6,17 +6,13 @@ Vous êtes en charge de :
 - Développer un système de prédiction de popularité d'un contenu vidéo. Usage final : aider les équipes de production de contenu vidéo pour définir les caractéristiques susceptibles d'influencer la popularité (satisfaction) du contenu.
 - Développer une application utilisateur (interface web) pour l'utilisation des services d'IA.
 
-Outils :
+## Outils :
 - Git
 - PostgreSQL
 - Machine learning
 - Veille
 
-Contexte du projet
-
-En tant que développeur en intelligence artificielle,
-
-Pour la base de données :
+## Pour la base de données
 
 - Rédaction des spécifications techniques pour le stockage des données.
 - Modélisation de la structure des données de la base de données selon la méthode Merise*.
@@ -27,22 +23,18 @@ Pour la base de données :
 - Documentation du script d’import.
 - Modélisation des données de l’application (par exemple, entités-relations, MCD/MPD, etc).
 
-​
-
-Pour les services d'IA :
+## Pour les services d'IA
 
 - Choix des algorithmes de recommandations et de régression
 - Création des pipelines nécessaires intégrant le preprocessing
 - Evaluation des performances des services d'IA développés
 
-​
-
-Pour l'application :
+## Pour l'application
 
 - Rédaction des spécifications fonctionnelles sous forme de user story.
 - Développement et intégration des des fonctionnalités
 
-Livrables :
+## Livrables
 
 - Un modèle relationnel de données
 - Une base de données alimentées
@@ -58,16 +50,16 @@ et :
 - Un dépôt Github.
 - Un Trello du projet
 
-Critères de performance : 
+## Critères de performance 
 L'application web est fonctionnelle et elle répond aux attentes du projet.
 
-## User Storys
+# User Storys
 - En tant qu’utilisateur qui souhaite regarder un film, je souhaite rentrer un film que j’ai aimé et obtenir une suggestion de 5 films à regarder en rentrant le nom dans un champ de texte dans une application web
 - En tant que producteur de film, je souhaite rentrer les caractéristiques d’un film que je souhaite produire et obtenir une estimation de sa popularité, en rentrant les caractéristiques dans des champs dans une application web
 - En tant qu’utilisateur, je souhaite observer les caractéristiques des films de la base de données IMDB via des graphiques sur une application web
 
 
-## MCD
+# MCD
 
 ```mermaid
 erDiagram
@@ -131,7 +123,7 @@ erDiagram
 
 ```
 
-## features utilisée
+# features utilisée
 
 - primarytitle
 - titletype
@@ -146,13 +138,13 @@ erDiagram
 - liste des régions dispo
 - category (acteur, self, actrice) des primary name
 
-## Performances du modèle de prédiction de popularité
+# Performances du modèle de prédiction de popularité
 MSE:  0.0003  
 MAE:  0.0032  
 R2:   0.3061  
  
 
-## Lignes en moins si ajout des clés étrangères
+# Lignes en moins si ajout des clés étrangères
 
 title_principals -> title_basics : 67 215 123 / 90 000 000  
 title_principals-> name_basics : 90 0000 000 / 90 000 000   
