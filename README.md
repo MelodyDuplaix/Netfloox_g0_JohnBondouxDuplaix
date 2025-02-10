@@ -66,7 +66,7 @@ L'application web est fonctionnelle et elle répond aux attentes du projet.
 
 ```mermaid
 erDiagram
-    title_akas }o--|| title_basics : titleId
+    title_akas }o--|| title_basics : tconst
     title_akas {
         bigint identifiant
         varchar tconst
