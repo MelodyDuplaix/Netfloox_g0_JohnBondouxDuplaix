@@ -20,6 +20,15 @@ def clean_text(text):
     return text.strip()
 
 def clean_list(list_str):
+    """
+    Nettoie une liste en remettant les éléments dans une liste et en remplacant les N par des listes vides
+
+    Args:
+        list_str (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     if list_str == "[]":
         return []
     if type(list_str) == float:
@@ -29,6 +38,15 @@ def clean_list(list_str):
     return [individu for individu in list if individu]
 
 def clean_region_list(list_str):
+    """
+    Nettoie une liste de régions en remettant les éléments dans une liste et en remplacant les N par des listes vides
+
+    Args:
+        list_str (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     if list_str == "[]":
         return []
     if type(list_str) == float:
@@ -38,7 +56,15 @@ def clean_region_list(list_str):
     return [individu for individu in list if individu]
 
 def Featurescleaning(df):
-    
+    """
+    Nettoie et transforme les données d'un DataFrame de films (et ajoute une colonne de note pondérée : 'weighted_score')
+
+    Args:
+        df (Dataframe): Dataframe à nettoyer
+
+    Returns:
+        Dataframe: Dataframe nettoyé
+    """
     # Paramètres pour le calcul du score pondéré
     C = df['averagerating'].mean()  # Score moyen de tous les films
     m = 1000  # Nombre minimum de votes requis pour être pris en compte

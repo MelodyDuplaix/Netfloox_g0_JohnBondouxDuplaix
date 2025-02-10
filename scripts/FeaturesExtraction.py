@@ -4,6 +4,15 @@ from dotenv import load_dotenv
 import os
 
 def get_extracted_features(line_number):
+    """
+    Récupère un certain nombre de ligne de la base de données et les traite pour en extraire les features
+    
+    Args:
+        line_number (int): nombre de ligne à récupérer
+        
+    Returns:
+        DataFrame: DataFrame contenant les features extrait
+    """
     # Connexion à la base de données
     load_dotenv()
     database_url = os.getenv("DATABASE_URL") # url de la base de données stocké dans un fichier .env sous la variable DATABASE_URL
