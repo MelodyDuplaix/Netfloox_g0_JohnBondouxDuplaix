@@ -1,40 +1,32 @@
-# Importation des modules standard pour la gestion des fichiers, des données, de l'interface et des calculs
-import os  # Pour les opérations système, notamment vérifier l'existence d'un fichier
-import sys  # Pour modifier le chemin d'importation
-sys.path.append('..')  # Ajoute le dossier parent au chemin d'importation
-import pandas as pd  # Pour la manipulation de DataFrame
-import streamlit as st  # Pour créer l'interface web avec Streamlit
-import matplotlib.pyplot as plt  # Pour la création de graphiques
-import seaborn as sns  # Pour la visualisation statistique (graphique amélioré)
-import numpy as np  # Pour les calculs numériques
-import re  # Pour le traitement et la manipulation de chaînes avec des expressions régulières
-
-# Importation des modules pour se connecter à la base de données et charger les variables d'environnement
-from sqlalchemy import create_engine  # Pour créer une connexion à la base de données
-from dotenv import load_dotenv  # Pour charger les variables d'environnement depuis un fichier .env
-
-# Importation de NLTK pour le stemming (réduction des mots à leur radical)
-from nltk import PorterStemmer
-import nltk  # Pour télécharger les ressources NLTK
-
-# Importations pour la création de pipelines et transformations avec Scikit-Learn
-from sklearn.pipeline import Pipeline  # Pour créer des pipelines de transformation
+# Importation des modules nécessaires pour le fonctionnement de l'application
+import os                         # Module pour interagir avec le système d'exploitation
+import sys                        # Module pour interagir avec des variables et fonctions du système Python
+sys.path.append('..')             # Ajoute le répertoire parent au chemin de recherche des modules
+import pandas as pd               # Bibliothèque pour la manipulation de données sous forme de DataFrame
+import streamlit as st            # Bibliothèque pour créer des applications web interactives
+import matplotlib.pyplot as plt   # Bibliothèque pour créer des graphiques
+import seaborn as sns             # Bibliothèque pour des visualisations statistiques plus avancées
+import numpy as np                # Bibliothèque pour les calculs numériques et manipulations de tableaux
+import re                         # Module pour les expressions régulières
+from sqlalchemy import create_engine  # Pour créer une connexion à une base de données SQL
+from dotenv import load_dotenv         # Pour charger les variables d'environnement depuis un fichier .env
+from nltk import PorterStemmer         # Pour utiliser l'algorithme de racinisation (stemming)
+import nltk                            # Bibliothèque de traitement du langage naturel
+from sklearn.pipeline import Pipeline  # Pour créer des chaînes de transformations sur les données
 from sklearn.preprocessing import FunctionTransformer  # Pour créer des transformateurs personnalisés
-from sklearn.model_selection import train_test_split  # Pour diviser le jeu de données en ensembles d'entraînement et de test
-from sklearn.metrics.pairwise import cosine_similarity  # Pour calculer la similarité cosinus entre des vecteurs
+from sklearn.ensemble import RandomForestRegressor      # Algorithme de régression (ici non utilisé directement)
+from sklearn.model_selection import train_test_split    # Pour diviser les données en ensembles d'entraînement et de test
 
-# Importations supplémentaires pour la recommandation et la prédiction
-from sklearn.compose import ColumnTransformer  # Pour appliquer des transformations sur des colonnes spécifiques
-from sklearn.impute import SimpleImputer  # Pour gérer les valeurs manquantes
-from sklearn.preprocessing import StandardScaler, OrdinalEncoder  # Pour normaliser et encoder les données
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer  # Pour transformer le texte en vecteurs numériques
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score  # Pour évaluer la performance du modèle
-from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors  # Pour utiliser des modèles basés sur les k plus proches voisins
-from sklearn.metrics.pairwise import cosine_similarity  # Pour calculer la similarité cosinus (importé à nouveau, mais nécessaire)
+# Importations supplémentaires pour le système de recommandation
+from sklearn.compose import ColumnTransformer      # Pour appliquer différentes transformations sur des colonnes spécifiques
+from sklearn.impute import SimpleImputer             # Pour gérer les valeurs manquantes
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder  # Pour normaliser les données et encoder des variables catégorielles
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer  # Pour transformer du texte en vecteurs
+from sklearn.metrics.pairwise import cosine_similarity  # Pour calculer la similarité cosinus entre des vecteurs
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
-# Vérifier que DATABASE_URL est défini, sinon afficher une erreur et stopper l'application
+# Vérifie que la variable DATABASE_URL est définie, sinon affiche une erreur et arrête l'application Streamlit
 if os.getenv("DATABASE_URL") is None:
     st.error(
         "Erreur : La variable DATABASE_URL n'est pas définie dans le fichier .env.\n"
@@ -42,35 +34,38 @@ if os.getenv("DATABASE_URL") is None:
     )
     st.stop()
 
-# Récupérer l'URL de la base de données depuis la variable d'environnement
-DATABASE_URL = os.getenv("DATABASE_URL")
-st.write("URL de la base de données utilisée :", DATABASE_URL)
-
-# Télécharger les ressources nécessaires de NLTK pour le stemming
+# Téléchargement des ressources NLTK nécessaires (à exécuter une seule fois)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# Définir le nom du fichier qui servira de cache local pour stocker le DataFrame extrait
+# Définition du nom du fichier de cache local pour stocker les données extraites (format Parquet)
 CACHE_FILE = "data_cache.parquet"
 
 # ---------------------------------------------------------------------
 # PARTIE 1 : Extraction et Nettoyage des Données
 # ---------------------------------------------------------------------
+
 def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     """
-    Extrait les données depuis la base de données en exécutant plusieurs requêtes SQL,
-    fusionne les résultats et enregistre le DataFrame final dans un fichier de cache local.
-    Si le cache existe, il est utilisé pour accélérer le chargement.
+    Extraction des données issues de plusieurs tables, fusion et agrégation.
+    Si un cache local existe (fichier Parquet), les données sont chargées depuis ce fichier.
+    Sinon, elles sont extraites depuis la base de données et sauvegardées en cache.
     """
+    # Si le fichier de cache existe, on charge directement les données pour accélérer l'exécution
     if os.path.exists(CACHE_FILE):
         st.write("Chargement des données depuis le cache local...")
         df_final = pd.read_parquet(CACHE_FILE)
         return df_final
 
     st.write("Extraction des données depuis la base de données...")
-    engine = create_engine(DATABASE_URL)  # Crée une connexion à la base de données
+    # Récupération de l'URL de la base de données à partir des variables d'environnement
+    database_url = os.getenv("DATABASE_URL")
+    if database_url is None:
+        raise ValueError("DATABASE_URL n'est pas défini dans le fichier .env.")
+    # Création du moteur de connexion à la base de données via SQLAlchemy
+    engine = create_engine(database_url)
 
-    # Extraction de la table title_basics
+    # Requête SQL pour extraire les données de la table 'title_basics'
     query = f"""
     SELECT tconst, titletype, primarytitle, isadult, startyear, genres, averagerating, numvotes 
     FROM sebastien.title_basics 
@@ -78,19 +73,17 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     ORDER BY startyear DESC 
     LIMIT {line_number};
     """
-    df = pd.read_sql_query(query, engine)
+    df = pd.read_sql_query(query, engine)  # Exécute la requête et stocke les résultats dans un DataFrame
     st.write("Table 1/4 chargée.")
 
-    # Extraction et fusion avec la table title_episode
+    # Requête pour extraire la table 'title_episode' et fusionner les données avec 'title_basics'
     query = "SELECT * FROM sebastien.title_episode;"
-    df_episode = pd.read_sql_query(query, engine)
-    # Fusion sur la colonne 'tconst'
-    df_merge = df.merge(df_episode, on="tconst", how="left")
-    # Fusion avec la table 'title_episode' sur la colonne 'parenttconst'
+    df_episode = pd.read_sql_query(query, engine)  # Charge les informations d'épisodes
+    df_merge = df.merge(df_episode, on="tconst", how="left")  # Fusionne les épisodes liés directement au film
     df_merge_parent = df.merge(df_episode, left_on="tconst", right_on="parenttconst", how="left", suffixes=('', '_parent'))
-    # Concaténation des deux fusions
+    # Concatène les deux DataFrames pour avoir une vue complète des épisodes
     df = pd.concat([df_merge, df_merge_parent], ignore_index=True)
-    # Agrégation par 'tconst' pour obtenir une seule ligne par film
+    # Agrège les données par 'tconst' en prenant la première valeur pour certaines colonnes et la valeur max pour d'autres
     df = df.groupby('tconst').agg({
         'titletype': 'first',
         'primarytitle': 'first',
@@ -104,7 +97,7 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     }).reset_index()
     st.write("Table 2/4 fusionnée.")
 
-    # Extraction de la table title_akas
+    # Requête pour extraire les informations de la table 'title_akas' (concernant les régions)
     query_title_akas = f"""
     SELECT 
         ta.tconst, 
@@ -120,20 +113,21 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
     GROUP BY 
         ta.tconst;
     """
-    df_akas = pd.read_sql_query(query_title_akas, engine)
-    # Fusionner le résultat avec le DataFrame principal
+    df_akas = pd.read_sql_query(query_title_akas, engine)  # Exécute la requête pour obtenir les régions
+    # Fusionne les données de régions avec le DataFrame principal
     df = df.merge(df_akas, on="tconst", how="left")
-    # Fonction pour nettoyer la colonne 'regionlist'
+    # Fonction locale pour nettoyer la liste des régions en retirant des valeurs indésirables
     def replace_and_filter(region_list):
         if isinstance(region_list, (list, np.ndarray)):
             return [region for region in region_list if region != '\\N' and region != '']
         if pd.isnull(region_list):
             return []
         return region_list
+    # Applique la fonction de nettoyage sur la colonne 'regionlist' du DataFrame df_akas
     df_akas['regionlist'] = df_akas['regionlist'].apply(replace_and_filter)
     st.write("Table 3/4 chargée.")
 
-    # Extraction de la table title_principals
+    # Requête pour extraire les informations de la table 'title_principals' (acteurs, réalisateurs, etc.)
     query_title_principals = f"""
     SELECT 
         tconst,
@@ -151,43 +145,46 @@ def get_extracted_features(line_number: int = 200) -> pd.DataFrame:
             WHERE startyear IS NOT NULL 
             ORDER BY startyear DESC LIMIT {line_number});
     """
-    df_principals = pd.read_sql_query(query_title_principals, engine)
-    # Transformation de la colonne 'primaryname' en liste par 'category'
+    df_principals = pd.read_sql_query(query_title_principals, engine)  # Charge les données des personnes liées aux films
+    # Agrège les noms par film et par catégorie en créant une liste de noms pour chaque combinaison
     df_principals = df_principals.groupby(['tconst', 'category'])['primaryname'].agg(list).unstack(fill_value=[]).reset_index()
-    # S'assurer que toutes les colonnes attendues existent
+    # S'assure que les colonnes importantes existent même si elles ne sont pas présentes dans le résultat
     for col in ["actor", "self", "producer", "actress", "director"]:
         if col not in df_principals.columns:
             df_principals[col] = [[] for _ in range(len(df_principals))]
+    # Réorganise le DataFrame pour ne garder que les colonnes souhaitées
     df_principals = df_principals[["tconst", "actor", "self", "producer", "actress", "director"]]
-    # Fusionner avec le DataFrame principal
+    # Fusionne les informations de la table 'title_principals' avec le DataFrame principal
     df_final = pd.merge(df, df_principals, on='tconst', how='left')
     st.write("Table 4/4 fusionnée.")
 
-    # Sauvegarde du DataFrame final dans un fichier Parquet pour le cache
+    # Sauvegarde du DataFrame final dans un fichier Parquet pour un accès plus rapide lors des exécutions suivantes
     df_final.to_parquet(CACHE_FILE)
     st.write("Données extraites et sauvegardées dans le cache local.")
-    return df_final
+    return df_final  # Retourne le DataFrame final contenant toutes les données fusionnées
 
 def clean_list(list_str) -> list:
     """
-    Convertit une chaîne représentant une liste en une liste Python.
-    Exemple : "['A', 'B', 'C']" -> ['A', 'B', 'C']
+    Convertit une chaîne représentant une liste en une vraie liste.
     """
+    # Si la variable est déjà une liste ou un tableau numpy, la convertir en liste Python
     if isinstance(list_str, (list, np.ndarray)):
         return list(list_str)
+    # Si la valeur est None, retourne une liste vide
     if list_str is None:
         return []
-    # Enlève les crochets et les guillemets
+    # Nettoie la chaîne en retirant les crochets et les guillemets
     s = str(list_str).strip("[]").replace("'", "").replace('"', "")
     if s == "":
         return []
-    # Sépare la chaîne en éléments et enlève les espaces superflus
+    # Sépare la chaîne par la virgule et retourne la liste des éléments nettoyés
     return [item.strip() for item in s.split(",") if item.strip()]
 
 def clean_region_list(list_str) -> list:
     """
-    Nettoie une chaîne représentant une liste de régions en supprimant les valeurs indésirables.
+    Nettoie une liste de régions en supprimant les valeurs indésirables.
     """
+    # Même logique que clean_list, en supprimant également les occurrences de '\\N'
     if isinstance(list_str, (list, np.ndarray)):
         return list(list_str)
     if list_str is None:
@@ -199,82 +196,80 @@ def clean_region_list(list_str) -> list:
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Applique un nettoyage complet au DataFrame :
-      - Convertit 'numvotes' et 'averagerating' en numérique et gère les valeurs manquantes.
-      - Calcule le score pondéré (weighted_score) en fonction de 'numvotes' et 'averagerating'.
-      - Applique des opérations de nettoyage sur les colonnes textuelles et les transforme en listes.
+    Nettoyage des données et feature engineering.
     """
-    # Conversion des colonnes en numérique et gestion des valeurs manquantes
+    # Conversion des colonnes 'numvotes' et 'averagerating' en valeurs numériques en remplaçant les valeurs indésirables
     df['numvotes'] = pd.to_numeric(df['numvotes'].replace("\\N", np.nan), errors='coerce')
     df['averagerating'] = pd.to_numeric(df['averagerating'].replace("\\N", np.nan), errors='coerce')
+    # Remplit les valeurs manquantes : pour 'numvotes' par 0 et pour 'averagerating' par la moyenne
     df['numvotes'].fillna(0, inplace=True)
     df['averagerating'].fillna(df['averagerating'].mean(), inplace=True)
     
-    # Calcul du score pondéré : C est la moyenne globale de 'averagerating', m est un seuil fixé (ici 1000)
+    # Calcul d'une moyenne globale de 'averagerating' pour le calcul du score pondéré
     C = df['averagerating'].mean()
-    m = 1000
+    m = 1000  # Seuil minimum de votes pour influencer le score
+    # Fonction pour calculer le score pondéré en tenant compte du nombre de votes et de la note moyenne
     def weighted_rating(x, m=m, C=C):
         v = x['numvotes']
         R = x['averagerating']
-        # Calcule le score pondéré en combinant R et la moyenne globale C
         return (v / (v + m) * R) + (m / (v + m) * C)
+    # Applique la fonction à chaque ligne pour créer une nouvelle colonne 'weighted_score'
     df['weighted_score'] = df.apply(weighted_rating, axis=1)
-    
-    # Fonction de stemming : réduit chaque mot à son radical
+
+    # Fonction de racinisation (stemming) pour réduire les mots à leur forme racine
     def stemming(text: str) -> str:
         ps = PorterStemmer()
-        tokens = text.split()
-        stemmed_tokens = [ps.stem(token) for token in tokens]
-        return " ".join(stemmed_tokens)
-    
-    # Fonction pour nettoyer le texte : met en minuscule, retire les caractères spéciaux et espaces superflus
-    def clean_text(text: str) -> str:
-        text = text.lower()
-        text = re.sub(r'[^a-z0-9\s\[\]]', '', text)
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
-    
-    # Nettoyage du titre principal avec nettoyage du texte et stemming
-    df['primarytitle'] = df['primarytitle'].apply(lambda x: stemming(clean_text(x)))
-    # Transformation de la colonne 'genres' en liste
-    df['genres'] = df['genres'].astype(str).apply(lambda x: x.split(','))
-    
-    # Pour chaque colonne de type liste, on applique le nettoyage et on ne garde que les 10 valeurs les plus fréquentes
-    for col in ["actor", "actress", "self", "producer", "director"]:
-        df[col] = df[col].apply(clean_list)
-        counts = df[col].explode().value_counts()
-        top_names = counts.head(10).index.tolist()  # On garde les 10 plus fréquents
-        df[col] = df[col].apply(lambda names: [name for name in names if name in top_names])
-    df["regionlist"] = df["regionlist"].apply(clean_region_list)
-    
-    return df
+        tokens = text.split()  # Découpe le texte en mots
+        stemmed_tokens = [ps.stem(token) for token in tokens]  # Applique le stemming à chaque mot
+        return " ".join(stemmed_tokens)  # Recompose la phrase avec les mots racinisés
 
-# On définit Featurescleaning comme alias de clean_data pour la cohérence avec d'autres modules
+    # Fonction pour nettoyer le texte en le mettant en minuscule et en supprimant les caractères non désirés
+    def clean_text(text: str) -> str:
+        text = text.lower()  # Convertit le texte en minuscules
+        text = re.sub(r'[^a-z0-9\s\[\]]', '', text)  # Supprime les caractères spéciaux, ne garde que lettres, chiffres, espaces et crochets
+        text = re.sub(r'\s+', ' ', text)  # Remplace les espaces multiples par un seul espace
+        return text.strip()  # Retire les espaces en début et fin de chaîne
+
+    # Applique le nettoyage et le stemming à la colonne 'primarytitle'
+    df['primarytitle'] = df['primarytitle'].apply(lambda x: stemming(clean_text(x)))
+    # Transforme la colonne 'genres' en une liste de genres en se basant sur la séparation par la virgule
+    df['genres'] = df['genres'].astype(str).apply(lambda x: x.split(','))
+
+    # Pour les colonnes liées aux personnes (acteurs, réalisateurs, etc.), nettoie la liste et conserve les noms les plus fréquents
+    for col in ["actor", "actress", "self", "producer", "director"]:
+        df[col] = df[col].apply(clean_list)  # Nettoie la chaîne pour obtenir une liste
+        counts = df[col].explode().value_counts()  # Compte le nombre d'apparitions de chaque nom
+        top_names = counts.head(10).index.tolist()  # Garde uniquement les 10 noms les plus fréquents
+        # Filtre la liste pour ne garder que les noms présents dans top_names
+        df[col] = df[col].apply(lambda names: [name for name in names if name in top_names])
+    # Nettoie la colonne 'regionlist' en appliquant la fonction dédiée
+    df["regionlist"] = df["regionlist"].apply(clean_region_list)
+
+    return df  # Retourne le DataFrame nettoyé
+
+# Pour la fonction de recommandation, nous utilisons un alias pour clean_data
 def Featurescleaning(df: pd.DataFrame) -> pd.DataFrame:
     return clean_data(df)
 
 # ---------------------------------------------------------------------
 # PARTIE 2 : Visualisation
 # ---------------------------------------------------------------------
+
 def visualize_data(df: pd.DataFrame):
-    """
-    Affiche des graphiques pour visualiser les 10 éléments les plus fréquents
-    dans les colonnes 'actor', 'actress', 'director' et 'genres'.
-    """
+    # Titre de la section dans l'application Streamlit
     st.subheader("Visualisation des données")
-    
-    # Visualisation des acteurs
     st.write("Top Acteurs")
+    # Visualisation des acteurs si la colonne 'actor' existe
     if "actor" in df.columns:
+        # Compte les occurrences de chaque acteur et sélectionne les 10 plus fréquents
         actor_counts = df["actor"].explode().value_counts().head(10)
-        plt.figure(figsize=(10, 6))
-        sns.barplot(x=actor_counts.values, y=actor_counts.index)
-        plt.title("Top 10 Acteurs")
-        st.pyplot(plt)
-        plt.clf()
-    
-    # Visualisation des actrices
+        plt.figure(figsize=(10, 6))  # Définit la taille de la figure
+        sns.barplot(x=actor_counts.values, y=actor_counts.index)  # Crée un graphique à barres horizontal
+        plt.title("Top 10 Acteurs")  # Définit le titre du graphique
+        st.pyplot(plt)  # Affiche le graphique dans l'interface Streamlit
+        plt.clf()  # Efface la figure pour préparer le prochain graphique
     st.write("Top Actrices")
+    # Visualisation des actrices si la colonne 'actress' existe
     if "actress" in df.columns:
         actress_counts = df["actress"].explode().value_counts().head(10)
         plt.figure(figsize=(10, 6))
@@ -282,9 +277,8 @@ def visualize_data(df: pd.DataFrame):
         plt.title("Top 10 Actrices")
         st.pyplot(plt)
         plt.clf()
-    
-    # Visualisation des réalisateurs
     st.write("Top Réalisateurs")
+    # Visualisation des réalisateurs si la colonne 'director' existe
     if "director" in df.columns:
         director_counts = df["director"].explode().value_counts().head(10)
         plt.figure(figsize=(10, 6))
@@ -292,10 +286,10 @@ def visualize_data(df: pd.DataFrame):
         plt.title("Top 10 Réalisateurs")
         st.pyplot(plt)
         plt.clf()
-    
-    # Visualisation des genres
     st.write("Top Genres")
+    # Visualisation des genres en comptant leur occurrence dans la colonne 'genres'
     if "genres" in df.columns:
+        # Crée une série de tous les genres présents dans le DataFrame
         genre_series = pd.Series([genre for genres in df['genres'] for genre in genres])
         genre_counts = genre_series.value_counts().head(10)
         plt.figure(figsize=(10, 6))
@@ -305,55 +299,58 @@ def visualize_data(df: pd.DataFrame):
         plt.clf()
 
 # ---------------------------------------------------------------------
-# PARTIE 3 : Recommandation (strictement le code fourni)
+# PARTIE 3 : Recommandation
 # ---------------------------------------------------------------------
+
 def RecommandationSystem(df, film):
     """
     Recommande des films similaires au film donné en se basant sur la similarité cosinus.
     
     Args:
-        df (pd.DataFrame): DataFrame contenant les données du film (non nettoyé initialement) avec des colonnes telles que
-                           'startyear', 'seasonnumber', 'episodenumber', 'titletype', 'genres', 'actor', 'actress' et 'primarytitle'.
-        film (str): Le titre du film pour lequel on souhaite obtenir des recommandations.
+        df (pd.DataFrame): DataFrame contenant les données du film avec des features telles que
+                           'startyear', 'seasonnumber', 'episodenumber', 'titletype', 'genres', 'actor', 'actress'
+                           et 'primarytitle'.
+        film (str): Le titre du film pour lequel la recommandation est demandée.
         
     Returns:
-        pd.DataFrame: Un DataFrame contenant les films recommandés.
+        pd.DataFrame: Un DataFrame contenant les 5 films les plus similaires.
     """
-    # Nettoyage des données via Featurescleaning
+    # Nettoie les données en appliquant la fonction Featurescleaning (alias de clean_data)
     df = Featurescleaning(df)
 
-    # Sélection des features pertinentes pour la recommandation
+    # Sélection des colonnes pertinentes pour la recommandation en supprimant celles non utiles
     features = df.drop(columns=["averagerating", "numvotes", "weighted_score", "tconst", "primarytitle", "self", "director", "producer"])
-    # Renommage de la colonne 'self' en 'selfperson' pour éviter les conflits
+    # Renomme la colonne "self" en "selfperson" pour éviter les conflits de nommage
     features.rename(columns={"self": "selfperson"}, inplace=True)
-    # Cible : weighted_score (bien que non utilisée dans ce cas)
-    target = df[["weighted_score"]].fillna(0)
-    # Division du DataFrame (même si cette division n'est pas utilisée dans ce cas)
-    features_train, features_test, target_train, target_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-    # Définition des pipelines pour chaque colonne
+    # Pipeline pour transformer la colonne 'startyear' : imputation par la médiane et standardisation
     yearPipeline = Pipeline(steps=[
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler())
     ])
+    # Pipeline pour transformer les colonnes 'seasonnumber' et 'episodenumber' : imputation constante et standardisation
     seasonEpisodeNumberPipeline = Pipeline(steps=[
         ("imputer", SimpleImputer(strategy="constant", fill_value=1)),
         ("scaler", StandardScaler())
     ])
+    # Pipeline pour encoder la colonne 'titletype' en valeurs ordinales
     titletypePipeline = Pipeline(steps=[
         ("encoder", OrdinalEncoder())
     ])
+    # Pipeline pour vectoriser la liste des genres en utilisant CountVectorizer avec un analyseur personnalisé
     genresPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
+    # Pipeline pour vectoriser la liste des acteurs
     actorPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
+    # Pipeline pour vectoriser la liste des actrices
     actressPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
     ])
 
-    # Création d'un ColumnTransformer pour appliquer les transformations aux colonnes correspondantes
+    # Création d'un ColumnTransformer pour appliquer les différents pipelines sur leurs colonnes respectives
     preprocessing = ColumnTransformer(transformers=[
         ("year", yearPipeline, ["startyear"]),
         ("seasonEpisodeNumber", seasonEpisodeNumberPipeline, ["seasonnumber", "episodenumber"]),
@@ -363,236 +360,68 @@ def RecommandationSystem(df, film):
         ("actress", actressPipeline, "actress")
     ])
 
-    # Pipeline complet de préparation des données
-    modelPipeReco = Pipeline(steps=[("preparation", preprocessing)])
-    
-    # Transformation des features et calcul de la similarité cosinus
+    # Création d'un pipeline complet qui prépare les données pour le calcul de similarité
+    modelPipeReco = Pipeline(steps=[
+        ("preparation", preprocessing)
+    ])
+
+    # Transformation des features en appliquant le pipeline
     features_transformed = modelPipeReco.fit_transform(features)
+    # Calcul de la similarité cosinus entre tous les films
     cosine_sim = cosine_similarity(features_transformed)
 
-    # Vérifier que le film est présent dans la colonne 'primarytitle'
+    # Vérifie que le film fourni est présent dans la colonne 'primarytitle'
     if film not in df["primarytitle"].values:
         raise ValueError(f"Le film '{film}' n'est pas présent dans la colonne 'primarytitle'.")
-    # Trouver l'indice du film dans le DataFrame
+    # Récupère l'index du film dans le DataFrame
     index = df[df["primarytitle"] == film].index[0]
+    # Récupère les similarités cosinus pour le film donné
     cosine_similarities = cosine_sim[index]
-    # Sélectionner les 5 films les plus similaires (excluant le film de référence)
-    similar_indices = cosine_similarities.argsort()[::-1][0:6]
-    similar_indices = [i for i in similar_indices if i != index]
+    # Trie les indices par ordre décroissant de similarité et sélectionne les 5 films les plus similaires (en excluant le film lui-même)
+    similar_indices = cosine_similarities.argsort()[::-1][1:6]
     similar_movies = df.iloc[similar_indices]
     
-    return similar_movies
+    return similar_movies  # Retourne un DataFrame des films recommandés
 
 # ---------------------------------------------------------------------
-# PARTIE 4 : Estimation de la Popularité par Critères
+# MAIN (Interface Streamlit)
 # ---------------------------------------------------------------------
-class PopularityPrediction():
-    """
-    Classe pour prédire la popularité d'un film (score pondéré) en fonction de critères saisis.
-    """
-    
-    def __init__(self) -> None:
-        # Pipeline pour la colonne 'startyear'
-        self.yearPipeline = Pipeline(steps=[
-            ("to_float", FunctionTransformer(lambda X: X.astype(np.float64))),
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler())
-        ])
-        # Pipeline pour 'seasonnumber' et 'episodenumber'
-        self.seasonEpisodeNumberPipeline = Pipeline(steps=[
-            ("to_float", FunctionTransformer(lambda X: X.astype(np.float64))),
-            ("imputer", SimpleImputer(strategy="constant", fill_value=1)),
-            ("scaler", StandardScaler())
-        ])
-        # Pipeline pour transformer 'primarytitle' en vecteurs via TF-IDF
-        self.primarytitlePipeline = Pipeline(steps=[("tfidf", TfidfVectorizer(stop_words="english"))])
-        # Pipeline pour encoder 'titletype'
-        self.titletypePipeline = Pipeline(steps=[("encoder", OrdinalEncoder())])
-        # Pipeline pour transformer 'genres' en vecteurs
-        self.genresPipeline = Pipeline(steps=[
-            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
-        ])
-        # Pipeline pour 'actor'
-        self.actorPipeline = Pipeline(steps=[
-            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
-        ])
-        # Pipeline pour 'actress'
-        self.actressPipeline = Pipeline(steps=[
-            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
-        ])
-        # Pipeline pour 'director'
-        self.directorPipeline = Pipeline(steps=[
-            ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
-        ])
-        # Création d'un ColumnTransformer qui applique chaque pipeline aux colonnes correspondantes
-        self.preprocessing = ColumnTransformer(transformers=[
-            ("year", self.yearPipeline, ["startyear"]),
-            ("seasonEpisodeNumber", self.seasonEpisodeNumberPipeline, ["seasonnumber", "episodenumber"]),
-            ("titletype", self.titletypePipeline, ["titletype"]),
-            ("genres", self.genresPipeline, "genres"),
-            ("actor", self.actorPipeline, "actor"),
-            ("actress", self.actressPipeline, "actress"),
-            ("director", self.directorPipeline, "director")
-        ])
-        # Pipeline complet qui combine le prétraitement et le modèle de régression (KNeighborsRegressor)
-        self.modelPipe = Pipeline(steps=[
-            ("prep données", self.preprocessing),
-            ("model", KNeighborsRegressor())
-        ])
-    
-    def fit(self, df):
-        """
-        Entraîne le modèle sur le DataFrame fourni.
-        On retire certaines colonnes non pertinentes, renomme 'self' en 'selfperson', et définit la cible (weighted_score).
-        """
-        self.df = df
-        self.features = df.drop(columns=["averagerating", "numvotes", "weighted_score", "tconst", "primarytitle", "self", "producer"])
-        # Renommer la colonne 'self' en 'selfperson' pour éviter des conflits dans le modèle
-        self.features.rename(columns={"self": "selfperson"}, inplace=True)
-        self.target = df[["weighted_score"]].fillna(0)
-        # Diviser le DataFrame en ensembles d'entraînement et de test
-        self.features_train, self.features_test, self.target_train, self.target_test = train_test_split(
-            self.features, self.target, test_size=0.2, random_state=42)
-        # Entraîner le modèle
-        self.modelPipe.fit(self.features_train, self.target_train)
-        
-    def predict(self, features):
-        """
-        Retourne la prédiction du modèle pour les features fournies.
-        """
-        return self.modelPipe.predict(features)
-    
-    def evaluate(self):
-        """
-        Évalue le modèle sur l'ensemble de test et renvoie les métriques MSE, MAE et R².
-        """
-        y_pred = self.modelPipe.predict(self.features_test)
-        mse = mean_squared_error(self.target_test, y_pred)
-        mae = mean_absolute_error(self.target_test, y_pred)
-        r2 = r2_score(self.target_test, y_pred)
-        return mse, mae, r2
 
-# ---------------------------------------------------------------------
-# INTERFACE STREAMLIT
-# ---------------------------------------------------------------------
 def main():
-    st.title("Application de Visualisation, Recommandation et Estimation de la Popularité par Critères")
-    
-    # Bouton pour actualiser la base de données (supprime le cache local)
-    if st.sidebar.button("Actualiser la BD"):
-        if os.path.exists(CACHE_FILE):
-            os.remove(CACHE_FILE)
-            st.sidebar.success("Cache supprimé, la BD sera réextrait.")
-    
-    # Extraction et nettoyage des données
+    # Titre principal de l'application
+    st.title("Application de Visualisation et de Recommandation de Films")
+    # Extraction des données via la fonction définie (depuis la base ou le cache)
     df = get_extracted_features(line_number=200)
+    # Nettoie les données pour s'assurer qu'elles sont prêtes pour la visualisation et la recommandation
     df = clean_data(df)
     
-    # Menu principal de l'application
+    # Création d'un menu dans la barre latérale pour choisir entre "Visualisation" et "Recommandation"
     menu = [
         "Visualisation",
-        "Recommandation",
-        "Prédiction de la Popularité (par film)",
-        "Estimation de la Popularité par Critères"
+        "Recommandation"
     ]
     choice = st.sidebar.selectbox("Menu principal", menu)
-    
-    # Option : Visualisation
+
+    # Si l'utilisateur choisit l'option "Visualisation"
     if choice == "Visualisation":
         st.write("Aperçu des données nettoyées :")
-        st.dataframe(df.head())
-        visualize_data(df)
-    
-    # Option : Recommandation
+        st.dataframe(df.head())  # Affiche les premières lignes du DataFrame
+        visualize_data(df)         # Affiche les graphiques de visualisation
+    # Si l'utilisateur choisit l'option "Recommandation"
     elif choice == "Recommandation":
+        # Demande à l'utilisateur d'entrer le titre du film pour lequel il souhaite une recommandation
         film = st.text_input("Entrez le titre du film pour lequel vous souhaitez une recommandation")
         if st.button("Obtenir des recommandations"):
             try:
+                # Appelle le système de recommandation pour trouver les films similaires
                 similar_movies = RecommandationSystem(df, film)
                 st.write("Films recommandés :")
+                # Affiche un tableau avec le titre, l'année de début et les genres des films recommandés
                 st.dataframe(similar_movies[["primarytitle", "startyear", "genres"]])
             except ValueError as e:
+                # Affiche une erreur dans l'interface Streamlit si le film n'est pas trouvé ou en cas d'autre problème
                 st.error(str(e))
-    
-    # Option : Prédiction de la Popularité (par film)
-    elif choice == "Prédiction de la Popularité (par film)":
-        st.subheader("Prédiction de la Popularité (par film)")
-        model = PopularityPrediction()
-        with st.spinner("Entraînement du modèle..."):
-            model.fit(df)
-        mse, mae, r2 = model.evaluate()
-        st.write(f"**MSE** : {mse:.4f}")
-        st.write(f"**MAE** : {mae:.4f}")
-        st.write(f"**R2**  : {r2:.4f}")
-        
-        film_choice = st.selectbox("Sélectionnez un film pour prédire sa popularité", df["primarytitle"].tolist())
-        if st.button("Prédire la popularité (par film)"):
-            selected_row = df[df["primarytitle"] == film_choice]
-            prediction = model.predict(selected_row)
-            st.write("Prédiction de popularité :", prediction[0])
-    
-    # Option : Estimation de la Popularité par Critères
-    elif choice == "Estimation de la Popularité par Critères":
-        st.subheader("Estimation de la Popularité par Critères")
-        with st.form(key="criteria_form"):
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                use_year = st.checkbox("Filtrer par année")
-                if use_year:
-                    year_val = st.number_input("Année", min_value=1900, max_value=2100, value=2000)
-                else:
-                    year_val = None
-            with col2:
-                actor_list = sorted(set([a for sublist in df["actor"] for a in sublist if a]))
-                actor_options = ["Aucun"] + actor_list
-                actor_choice = st.selectbox("Acteur/Actrice", actor_options)
-                if actor_choice == "Aucun":
-                    actor_choice = None
-            with col3:
-                director_list = sorted(set([d for sublist in df["director"] for d in sublist if d]))
-                director_options = ["Aucun"] + director_list
-                director_choice = st.selectbox("Réalisateur", director_options)
-                if director_choice == "Aucun":
-                    director_choice = None
-            with col4:
-                genre_list = sorted(set([g for genres in df["genres"] for g in genres if g]))
-                genre_options = ["Aucun"] + genre_list
-                genre_choice = st.selectbox("Genre", genre_options)
-                if genre_choice == "Aucun":
-                    genre_choice = None
-            submit_button = st.form_submit_button(label="Estimer la popularité (par critères)")
-        
-        if submit_button:
-            # Construction de la ligne d'entrée en fonction des critères sélectionnés
-            input_data = pd.DataFrame({
-                "startyear": [year_val if year_val is not None else int(df["startyear"].median())],
-                "seasonnumber": [1.0],
-                "episodenumber": [1.0],
-                "titletype": [df["titletype"].mode()[0]],  # Utilise la valeur la plus fréquente
-                "genres": [[genre_choice] if genre_choice is not None else []],
-                "actor": [[actor_choice] if actor_choice is not None else []],
-                "actress": [[]],  # Laisse vide pour cet exemple
-                "director": [[director_choice] if director_choice is not None else []]
-            })
-            
-            model = PopularityPrediction()
-            with st.spinner("Entraînement du modèle..."):
-                model.fit(df)
-            # Conversion explicite pour s'assurer que les colonnes numériques sont bien en float
-            input_data["seasonnumber"] = input_data["seasonnumber"].astype(float)
-            input_data["episodenumber"] = input_data["episodenumber"].astype(float)
-            # Préparation d'une copie pour diagnostic
-            tab = input_data.copy()
-            tab["actor"] = tab["actor"].astype(str)
-            tab["director"] = tab["director"].astype(str)
-            tab["actress"] = tab["actress"].astype(str)
-            st.write("Données d'entrée pour la prédiction :")
-            st.dataframe(tab)
-            # Prédiction
-            prediction = model.predict(input_data)
-            st.write("Estimation de la popularité (par critères) :", prediction[0])
-            st.write("Types des colonnes d'entrée :", input_data.dtypes)
-            print(prediction)
 
+# Point d'entrée principal du script
 if __name__ == "__main__":
     main()
