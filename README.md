@@ -61,6 +61,11 @@ et :
 Critères de performance : 
 L'application web est fonctionnelle et elle répond aux attentes du projet.
 
+## User Storys
+- En tant qu’utilisateur qui souhaite regarder un film, je souhaite rentrer un film que j’ai aimé et obtenir une suggestion de 5 films à regarder en rentrant le nom dans un champ de texte dans une application web
+- En tant que producteur de film, je souhaite rentrer les caractéristiques d’un film que je souhaite produire et obtenir une estimation de sa popularité, en rentrant les caractéristiques dans des champs dans une application web
+- En tant qu’utilisateur, je souhaite observer les caractéristiques des films de la base de données IMDB via des graphiques sur une application web
+
 
 ## MCD
 
