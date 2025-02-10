@@ -126,13 +126,12 @@ erDiagram
 
 ```
 
-## features à utiliser
+## features utilisée
 
 - primarytitle
 - titletype
 - isadult
 - startyear
-- endyear ?
 - genres
 - agrégation / pondération de la colonne averagerating et numvotes
 - runtimeminutes
@@ -140,8 +139,13 @@ erDiagram
 - episodenumber
 - nombre de régions dispo
 - liste des régions dispo
-- category (acteur, self, actrice, producteur ?) des primary name
+- category (acteur, self, actrice) des primary name
 
+## Performances du modèle de prédiction de popularité
+MSE:  0.0003  
+MAE:  0.0032  
+R2:   0.3061  
+ 
 
 ## Lignes en moins si ajout des clés étrangères
 
