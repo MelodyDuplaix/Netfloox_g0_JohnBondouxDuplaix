@@ -64,7 +64,7 @@ def Featurescleaning(df):
 
     Returns:
         Dataframe: Dataframe nettoyé
-    """
+    """ 
     # Paramètres pour le calcul du score pondéré
     C = df['averagerating'].mean()  # Score moyen de tous les films
     m = 1000  # Nombre minimum de votes requis pour être pris en compte
