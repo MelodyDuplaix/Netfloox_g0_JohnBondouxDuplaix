@@ -26,7 +26,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Charger le fichier .env et définir DATABASE_URL (valeur par défaut utilisée si non définie)
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://psqladmin:GRETAP4!2025***@netfloox-psqlflexibleserver-0.postgres.database.azure.com:5432/postgres")
-st.write("URL de la base de données utilisée :", DATABASE_URL)
 
 # Téléchargement des ressources NLTK (à exécuter une seule fois)
 nltk.download('wordnet')
@@ -53,6 +52,8 @@ def get_extracted_features(line_number=10000) -> pd.DataFrame:
     SELECT tconst, titletype, primarytitle, isadult, startyear, genres, averagerating, numvotes 
     FROM sebastien.title_basics 
     WHERE startyear IS NOT NULL 
+    AND averagerating IS NOT NULL
+    AND numvotes IS NOT NULL
     ORDER BY startyear DESC 
     LIMIT {line_number};
     """
@@ -91,6 +92,8 @@ def get_extracted_features(line_number=10000) -> pd.DataFrame:
         ta.tconst IN (
             SELECT tconst FROM sebastien.title_basics 
             WHERE startyear IS NOT NULL 
+            AND averagerating IS NOT NULL
+            AND numvotes IS NOT NULL
             ORDER BY startyear DESC LIMIT {line_number})
     GROUP BY 
         ta.tconst;
@@ -122,6 +125,8 @@ def get_extracted_features(line_number=10000) -> pd.DataFrame:
         ta.tconst IN (
             SELECT tconst FROM sebastien.title_basics  
             WHERE startyear IS NOT NULL 
+            AND averagerating IS NOT NULL
+            AND numvotes IS NOT NULL
             ORDER BY startyear DESC LIMIT {line_number});
     """
     df_principals = pd.read_sql_query(query_title_principals, engine)
