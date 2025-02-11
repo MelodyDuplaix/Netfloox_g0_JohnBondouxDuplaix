@@ -19,7 +19,7 @@ def get_extracted_features(line_number):
     engine = create_engine(database_url)  # type: ignore
     
     # Récupération des données de la table de base
-    query = f"""q
+    query = f"""
     SELECT tconst, titletype, primarytitle, isadult, startyear, genres, averagerating, numvotes 
     FROM sebastien.title_basics 
     WHERE startyear IS NOT NULL 
@@ -64,6 +64,8 @@ def get_extracted_features(line_number):
         ta.tconst IN (
             SELECT tconst FROM sebastien.title_basics 
             WHERE startyear IS NOT NULL 
+            AND averagerating IS NOT NULL
+            AND numvotes IS NOT NULL
             ORDER BY startyear DESC LIMIT {line_number})
     GROUP BY 
         ta.tconst;
@@ -97,6 +99,8 @@ def get_extracted_features(line_number):
         ta.tconst IN (
             SELECT tconst FROM sebastien.title_basics  
             WHERE startyear IS NOT NULL 
+            AND averagerating IS NOT NULL
+            AND numvotes IS NOT NULL
             ORDER BY startyear DESC LIMIT  {line_number});
     """
 
