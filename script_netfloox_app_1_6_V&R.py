@@ -9,8 +9,6 @@ import numpy as np
 import re
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
-from nltk import PorterStemmer
-import nltk
 
 # Imports pour le traitement et la modélisation
 from sklearn.compose import ColumnTransformer
@@ -27,9 +25,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://psqladmin:GRETAP4!2025***@netfloox-psqlflexibleserver-0.postgres.database.azure.com:5432/postgres")
 
-# Téléchargement des ressources NLTK (à exécuter une seule fois)
-nltk.download('wordnet')
-nltk.download('omw-1.4')
 
 # Nom du fichier de cache local
 CACHE_FILE = "data_cache.parquet"
@@ -396,10 +391,7 @@ def main():
     df = get_extracted_features(line_number=10000)
     df = clean_data(df)
     model = PopularityPrediction()
-    print(df.head())
     model.fit(df)
-    print(model.predict(df.iloc[0:1]))
-    print("predictiont")
     
     menu = [
         "Visualisation",
