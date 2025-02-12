@@ -430,7 +430,7 @@ def main():
             with col1:
                 use_year = st.checkbox("Filtrer par année")
                 if use_year:
-                    year_val = st.number_input("Année", min_value=1900, max_value=2100, value=2000)
+                    year_val = st.selectbox("Année", options=sorted(df["startyear"].unique()))
                 else:
                     year_val = None
             with col2:
