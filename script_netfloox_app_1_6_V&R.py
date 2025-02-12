@@ -177,19 +177,6 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
        
     df['weighted_score'] = df.apply(weighted_rating, axis=1)
     
-    def stemming(text: str) -> str:
-        ps = PorterStemmer()
-        tokens = text.split()
-        stemmed_tokens = [ps.stem(token) for token in tokens]
-        return " ".join(stemmed_tokens)
-    
-    def clean_text(text: str) -> str:
-        text = text.lower()
-        text = re.sub(r'[^a-z0-9\s\[\]]', '', text)
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
-    
-    df['primarytitle'] = df['primarytitle'].apply(lambda x: stemming(clean_text(x)))
     df['genres'] = df['genres'].astype(str).apply(lambda x: x.split(','))
     
     for col in ["actor", "actress", "self", "producer", "director"]:
@@ -272,7 +259,6 @@ def RecommandationSystem(df, film):
     # Définir les pipelines
     yearPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="median")), ("scaling", StandardScaler())])
     seasonEpisodeNumberPipeline = Pipeline(steps=[("inputing", SimpleImputer(strategy="constant", fill_value=1)), ("scaling", StandardScaler())])
-    primarytitlePipeline = Pipeline(steps=[("tfidf", TfidfVectorizer(stop_words="english"))])
     titletypePipeline = Pipeline(steps=[("tfidf", OrdinalEncoder())])
     genresPipeline = Pipeline(steps=[
         ('binarizer', CountVectorizer(analyzer=lambda x: set(x)))
@@ -407,7 +393,7 @@ def main():
             os.remove(CACHE_FILE)
             st.sidebar.success("Cache supprimé, la BD sera réextrait.")
     
-    df = get_extracted_features(line_number=200)
+    df = get_extracted_features(line_number=10000)
     df = clean_data(df)
     model = PopularityPrediction()
     print(df.head())
@@ -428,7 +414,7 @@ def main():
         visualize_data(df)
     
     elif choice == "Recommandation":
-        film = st.text_input("Entrez le titre du film pour lequel vous souhaitez une recommandation")
+        film = st.selectbox("Entrez le titre du film pour lequel vous souhaitez une recommandation", options=df["primarytitle"])
         if st.button("Obtenir des recommandations"):
             try:
                 similar_movies = RecommandationSystem(df, film)
